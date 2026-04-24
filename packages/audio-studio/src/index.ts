@@ -43,6 +43,10 @@ export { AudioDeviceManager, audioDeviceManager } from './AudioDeviceManager'
 // Export useAudioDevices hook
 export { useAudioDevices } from './hooks/useAudioDevices'
 
+// Export useAudioPlayback hook (for playing audio through the same audio engine
+// as the recorder so platform-level AEC can cancel speaker echo)
+export { useAudioPlayback } from './hooks/useAudioPlayback'
+
 export { setMelSpectrogramWasmUrl } from './AudioAnalysis/wasmConfig'
 
 export {

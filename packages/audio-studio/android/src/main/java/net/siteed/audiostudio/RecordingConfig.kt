@@ -67,6 +67,11 @@ data class RecordingConfig(
     val audioFocusStrategy: String? = null,
     val bufferDurationSeconds: Double? = null,
     val streamFormat: String = "raw",
+    // Voice processing for echo cancellation (AEC).
+    // When enabled, AudioRecord is created with MediaRecorder.AudioSource.VOICE_COMMUNICATION
+    // and AcousticEchoCanceler / NoiseSuppressor / AutomaticGainControl are attached
+    // to the recording session if the device supports them.
+    val voiceProcessing: Boolean = false,
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -160,6 +165,7 @@ data class RecordingConfig(
                 audioFocusStrategy = audioFocusStrategy,
                 bufferDurationSeconds = (options["bufferDurationSeconds"] as? Number)?.toDouble(),
                 streamFormat = options.getStringOrDefault("streamFormat", "raw"),
+                voiceProcessing = options.getBooleanOrDefault("voiceProcessing", false),
             )
 
             // Validate sample rate and channels

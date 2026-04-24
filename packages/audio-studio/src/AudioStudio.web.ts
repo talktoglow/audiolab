@@ -129,10 +129,14 @@ export class AudioStudioWeb extends LegacyEventEmitter {
                 throw new Error('Browser does not support audio recording')
             }
 
-            // Get media with detailed audio constraints for better diagnostics
+            // Get media with detailed audio constraints for better diagnostics.
+            // When voiceProcessing is explicitly disabled, we turn off echoCancellation
+            // so callers asking for raw mic input get it. Otherwise default to on.
+            const enableEchoCancellation =
+                this.recordingConfig?.voiceProcessing ?? true
             const constraints = {
                 audio: {
-                    echoCancellation: true,
+                    echoCancellation: enableEchoCancellation,
                     noiseSuppression: true,
                     autoGainControl: true,
                     // Add deviceId constraint if specified

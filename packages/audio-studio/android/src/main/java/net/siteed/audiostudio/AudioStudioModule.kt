@@ -27,6 +27,7 @@ class AudioStudioModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
     private lateinit var audioDeviceManager: AudioDeviceManager
+    private val audioPlaybackManager: AudioPlaybackManager by lazy { AudioPlaybackManager() }
     private var enablePhoneStateHandling: Boolean = false // Default to false until we check manifest
     private var enableNotificationHandling: Boolean = false // Default to false until we check manifest
     private var enableBackgroundAudio: Boolean = false // Default to false until we check manifest
@@ -657,14 +658,47 @@ class AudioStudioModule : Module(), EventSender {
             val isServiceRunning = AudioRecordingService.isServiceRunning()
 
             val status = audioRecorderManager.getStatus()
-            
+
             // If service is running but isRecording is false, we need to cleanup
             if (isServiceRunning && !status.getBoolean("isRecording")) {
                 audioRecorderManager.cleanup()
                 AudioRecordingService.stopService(appContext.reactContext!!)
             }
-            
+
             promise.resolve(status)
+        }
+
+        // ----- Playback Functions -----
+        // Mirrors the iOS playback API. These route through USAGE_VOICE_COMMUNICATION
+        // so the platform AEC (paired with VOICE_COMMUNICATION recording) can cancel
+        // the speaker signal from the mic.
+
+        Function("initializePlayback") { sampleRate: Double? ->
+            audioPlaybackManager.initialize((sampleRate ?: 24000.0).toInt())
+        }
+
+        Function("playBuffer") { base64Audio: String, sampleRate: Double? ->
+            audioPlaybackManager.playBuffer(base64Audio, (sampleRate ?: 24000.0).toInt())
+        }
+
+        Function("stopPlayback") {
+            audioPlaybackManager.stopPlayback()
+        }
+
+        Function("clearPlaybackQueue") {
+            audioPlaybackManager.clearPlaybackQueue()
+        }
+
+        Function("cleanupPlayback") {
+            audioPlaybackManager.cleanup()
+        }
+
+        Function("setPlaybackVolume") { volume: Double ->
+            audioPlaybackManager.setPlaybackVolume(volume.toFloat())
+        }
+
+        Function("isPlaybackActive") {
+            audioPlaybackManager.isPlaybackActive
         }
 
 

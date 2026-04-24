@@ -8,6 +8,9 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -81,6 +84,12 @@ class AudioRecorderManager(
     
     private var audioRecord: AudioRecord? = null
     private var bufferSizeInBytes = 0
+
+    // Voice-processing audio effects attached to the active AudioRecord session.
+    // Released alongside the AudioRecord on stop / cleanup.
+    private var acousticEchoCanceler: AcousticEchoCanceler? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+    private var automaticGainControl: AutomaticGainControl? = null
     private val _isRecording = AtomicBoolean(false)
     private val isPaused = AtomicBoolean(false)
     private var streamUuid: String? = null
@@ -165,6 +174,7 @@ class AudioRecorderManager(
             synchronized(audioRecordLock) {
                 if (audioRecord != null) {
                     LogUtils.d(CLASS_NAME, "🔄 Releasing current AudioRecord while paused to allow proper reinitialization")
+                    releaseVoiceProcessingEffects()
                     audioRecord?.release()
                     audioRecord = null
                     LogUtils.d(CLASS_NAME, "🔄 AudioRecord released successfully")
@@ -206,6 +216,7 @@ class AudioRecorderManager(
             // Release the current audio record resources
             synchronized(audioRecordLock) {
                 LogUtils.d(CLASS_NAME, "🔄 Releasing current AudioRecord")
+                releaseVoiceProcessingEffects()
                 audioRecord?.release()
                 audioRecord = null
                 LogUtils.d(CLASS_NAME, "🔄 AudioRecord resources released")
@@ -838,8 +849,18 @@ class AudioRecorderManager(
             if (audioRecord == null || !isPaused.get()) {
                 LogUtils.d(CLASS_NAME, "Initializing AudioRecord with format: $audioFormat, BufferSize: $bufferSizeInBytes")
 
+                // VOICE_COMMUNICATION signals the platform to apply call-style processing
+                // (echo cancellation, noise suppression, AGC) when voiceProcessing is on.
+                // We additionally attach the audiofx effects below in case the OEM does not
+                // do so automatically.
+                val audioSource = if (recordingConfig.voiceProcessing) {
+                    MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                } else {
+                    MediaRecorder.AudioSource.MIC
+                }
+
                 audioRecord = AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
+                    audioSource,
                     recordingConfig.sampleRate,
                     if (recordingConfig.channels == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO,
                     audioFormat,
@@ -853,6 +874,10 @@ class AudioRecorderManager(
                         null
                     )
                     return false
+                }
+
+                if (recordingConfig.voiceProcessing) {
+                    attachVoiceProcessingEffects()
                 }
             }
             return true
@@ -1069,6 +1094,7 @@ class AudioRecorderManager(
                 LogUtils.e(CLASS_NAME, "Error reading from AudioRecord", e)
             } finally {
                 releaseWakeLock()
+                releaseVoiceProcessingEffects()
                 audioRecord?.release()
             }
 
@@ -1759,6 +1785,7 @@ class AudioRecorderManager(
                 releaseWakeLock()
                 releaseAudioFocus()
                 unregisterPhoneStateListener()
+                releaseVoiceProcessingEffects()
                 audioRecord?.release()
                 audioRecord = null
                 
@@ -2159,5 +2186,60 @@ class AudioRecorderManager(
             isPrepared = false
             return false
         }
+    }
+
+    /**
+     * Attaches platform audio effects (AEC / NS / AGC) to the active AudioRecord session.
+     * Each effect is best-effort: if the device does not support it (`isAvailable() == false`)
+     * or `create()` fails, the effect is skipped and we rely on the VOICE_COMMUNICATION
+     * audio source to do whatever processing the OEM provides.
+     */
+    private fun attachVoiceProcessingEffects() {
+        val sessionId = audioRecord?.audioSessionId ?: return
+
+        if (AcousticEchoCanceler.isAvailable()) {
+            try {
+                acousticEchoCanceler = AcousticEchoCanceler.create(sessionId)?.also {
+                    it.enabled = true
+                    LogUtils.d(CLASS_NAME, "AcousticEchoCanceler attached (session=$sessionId)")
+                }
+            } catch (e: Exception) {
+                LogUtils.w(CLASS_NAME, "Failed to attach AcousticEchoCanceler: ${e.message}")
+            }
+        } else {
+            LogUtils.d(CLASS_NAME, "AcousticEchoCanceler not available on this device")
+        }
+
+        if (NoiseSuppressor.isAvailable()) {
+            try {
+                noiseSuppressor = NoiseSuppressor.create(sessionId)?.also {
+                    it.enabled = true
+                    LogUtils.d(CLASS_NAME, "NoiseSuppressor attached (session=$sessionId)")
+                }
+            } catch (e: Exception) {
+                LogUtils.w(CLASS_NAME, "Failed to attach NoiseSuppressor: ${e.message}")
+            }
+        }
+
+        if (AutomaticGainControl.isAvailable()) {
+            try {
+                automaticGainControl = AutomaticGainControl.create(sessionId)?.also {
+                    it.enabled = true
+                    LogUtils.d(CLASS_NAME, "AutomaticGainControl attached (session=$sessionId)")
+                }
+            } catch (e: Exception) {
+                LogUtils.w(CLASS_NAME, "Failed to attach AutomaticGainControl: ${e.message}")
+            }
+        }
+    }
+
+    /** Releases AEC / NS / AGC effects. Safe to call when none are attached. */
+    private fun releaseVoiceProcessingEffects() {
+        try { acousticEchoCanceler?.release() } catch (_: Exception) {}
+        try { noiseSuppressor?.release() } catch (_: Exception) {}
+        try { automaticGainControl?.release() } catch (_: Exception) {}
+        acousticEchoCanceler = null
+        noiseSuppressor = null
+        automaticGainControl = null
     }
 }

@@ -129,7 +129,12 @@ struct RecordingSettings {
     var deviceDisconnectionBehavior: DeviceDisconnectionBehavior = .FALLBACK
     var bufferDurationSeconds: Double?
     var streamFormat: String = "raw"
-    
+
+    // Voice processing for echo cancellation (AEC)
+    // When enabled, uses Apple's VoiceProcessingIO to filter out speaker audio from mic input
+    // This is useful for voice chat applications where the speaker and mic are active simultaneously
+    var voiceProcessing: Bool = false
+
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Parse output configuration
         var outputSettings = OutputSettings()
@@ -305,6 +310,9 @@ struct RecordingSettings {
         }
 
         settings.streamFormat = dict["streamFormat"] as? String ?? "raw"
+
+        // Parse voice processing setting for echo cancellation
+        settings.voiceProcessing = dict["voiceProcessing"] as? Bool ?? false
 
         return .success(settings)
     }

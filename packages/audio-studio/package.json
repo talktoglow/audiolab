@@ -1,7 +1,7 @@
 {
     "name": "@siteed/audio-studio",
     "version": "3.0.3",
-    "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web",
+    "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web. Glow fork (talktoglow/audiolab) adds VoiceProcessingIO-based AEC + native PCM playback. Published as @talktoglow/audio-studio.",
     "license": "MIT",
     "type": "commonjs",
     "main": "./build/cjs/index.js",
@@ -11,14 +11,14 @@
         "plugin": "./app.plugin.js"
     },
     "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
-    "homepage": "https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/README.md",
+    "homepage": "https://github.com/talktoglow/audiolab/blob/talktoglow/main/packages/audio-studio/README.md",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/deeeed/audiolab.git",
+        "url": "git+https://github.com/talktoglow/audiolab.git",
         "directory": "packages/audio-studio"
     },
     "bugs": {
-        "url": "https://github.com/deeeed/audiolab/issues"
+        "url": "https://github.com/talktoglow/audiolab/issues"
     },
     "keywords": [
         "react-native",

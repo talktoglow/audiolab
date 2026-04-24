@@ -509,6 +509,28 @@ export interface RecordingConfig {
      * @default 'raw'
      */
     streamFormat?: 'float32' | 'raw'
+
+    /**
+     * Enable voice processing for echo cancellation (AEC).
+     * When enabled, uses Apple's VoiceProcessingIO on iOS to filter out
+     * speaker audio from microphone input, preventing echo in bidirectional
+     * voice communication applications.
+     *
+     * Platform Notes:
+     * - iOS: Uses AVAudioEngine's setVoiceProcessingEnabled(true) on input/output nodes
+     *   and sets audio session mode to .voiceChat for optimal AEC
+     * - Android: Uses VOICE_COMMUNICATION audio source plus AcousticEchoCanceler /
+     *   NoiseSuppressor / AutomaticGainControl effects (where supported by the device)
+     * - Web: Uses browser's built-in echo cancellation via getUserMedia constraints
+     *
+     * Use this when:
+     * - Building voice chat applications where speaker and mic are active simultaneously
+     * - User speaks while AI/assistant audio is playing
+     * - You need to prevent the microphone from picking up speaker output
+     *
+     * @default false
+     */
+    voiceProcessing?: boolean
 }
 
 export interface NotificationConfig {
@@ -896,4 +918,54 @@ export interface TrimAudioResult {
          */
         durationMs: number
     }
+}
+
+// ============================================================================
+// Playback Types
+// ============================================================================
+
+/**
+ * Configuration for initializing audio playback.
+ * Used with the playback functions to enable audio output through the same
+ * audio engine as recording — required for hardware echo cancellation
+ * (VoiceProcessingIO on iOS) to work correctly.
+ */
+export interface PlaybackConfig {
+    /**
+     * Sample rate for playback in Hz.
+     * Should match the audio source's sample rate.
+     * @default 24000 (Gemini Live API output rate)
+     */
+    sampleRate?: number
+
+    /**
+     * Gain/volume multiplier for playback.
+     * Values > 1.0 increase volume, < 1.0 decrease.
+     * @default 1.0
+     */
+    gain?: number
+}
+
+/** Interface for playback state. */
+export interface PlaybackState {
+    /** Whether playback is currently active */
+    isPlaying: boolean
+    /** Whether playback has been initialized */
+    isInitialized: boolean
+}
+
+/** Return type for the useAudioPlayback hook. */
+export interface UseAudioPlaybackReturn {
+    /** Initialize the playback system. Call before playing audio. */
+    initialize: (config?: PlaybackConfig) => boolean
+    /** Play a chunk of base64-encoded PCM16 audio */
+    playChunk: (base64Audio: string) => void
+    /** Clear all queued audio. Use when user interrupts. */
+    clearQueue: () => void
+    /** Clean up resources. Call when leaving voice mode. */
+    cleanup: () => void
+    /** Whether audio is currently playing */
+    isPlaying: boolean
+    /** Register callback for playback state changes */
+    onPlaybackStateChange: (callback: (isPlaying: boolean) => void) => void
 }
