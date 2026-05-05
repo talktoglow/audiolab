@@ -27,7 +27,12 @@ class AudioStudioModule : Module(), EventSender {
     private lateinit var audioRecorderManager: AudioRecorderManager
     private lateinit var audioProcessor: AudioProcessor
     private lateinit var audioDeviceManager: AudioDeviceManager
-    private val audioPlaybackManager: AudioPlaybackManager by lazy { AudioPlaybackManager() }
+    private val audioPlaybackManager: AudioPlaybackManager by lazy {
+        AudioPlaybackManager(
+            appContext.reactContext
+                ?: throw IllegalStateException("React context not available")
+        )
+    }
     private var enablePhoneStateHandling: Boolean = false // Default to false until we check manifest
     private var enableNotificationHandling: Boolean = false // Default to false until we check manifest
     private var enableBackgroundAudio: Boolean = false // Default to false until we check manifest

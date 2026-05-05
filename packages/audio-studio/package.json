@@ -1,6 +1,6 @@
 {
-    "name": "@siteed/audio-studio",
-    "version": "3.0.3",
+    "name": "@talktoglow/audio-studio",
+    "version": "3.0.3-glow.0",
     "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web. Glow fork (talktoglow/audiolab) adds VoiceProcessingIO-based AEC + native PCM playback. Published as @talktoglow/audio-studio.",
     "license": "MIT",
     "type": "commonjs",
@@ -91,7 +91,7 @@
         "test:coverage": "cd ../../apps/playground/android && ./gradlew :siteed-expo-audio-studio:jacocoTestReport",
         "typecheck": "tsc --noEmit",
         "docgen": "typedoc src/index.ts --plugin typedoc-plugin-markdown --readme none --out ../../documentation_site/docs/api-reference/API && node ../../scripts/escape-mdx-generics.js ../../documentation_site/docs/api-reference",
-        "prepare": "yarn build && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
+        "prepare.disabled-for-glow-file-install": "yarn build && node -e \"require('fs').renameSync('./plugin/build/index.d.ts', './plugin/build/index.d.cts')\"",
         "prepublishOnly.disabled": "expo-module prepublishOnly",
         "expo-module": "expo-module",
         "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
