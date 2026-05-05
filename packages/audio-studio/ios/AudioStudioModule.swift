@@ -372,7 +372,7 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
         ///   - promise: A promise to resolve with the permission status or reject with an error.
         /// - Returns: Promise to be resolved with the permission status.
         AsyncFunction("requestPermissionsAsync") { (promise: Promise) in
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            self.requestRecordPermission { granted in
                 promise.resolve([
                     "status": granted ? "granted" : "denied",
                     "granted": granted,
@@ -398,8 +398,7 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
         ///   - promise: A promise to resolve with the permission status or reject with an error.
         /// - Returns: Promise to be resolved with the permission status.
         AsyncFunction("getPermissionsAsync") { (promise: Promise) in
-            let permissionStatus = AVAudioSession.sharedInstance().recordPermission
-            switch permissionStatus {
+            switch self.currentRecordPermissionStatus() {
             case .granted:
                 promise.resolve([
                     "status": "granted",
@@ -421,8 +420,6 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
                     "expires": "never",
                     "canAskAgain": true
                 ])
-            @unknown default:
-                promise.reject("UNKNOWN_ERROR", "Unknown permission status")
             }
         }
 
@@ -1068,24 +1065,62 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
         sendEvent(audioAnalysisEvent, resultDict)
     }
     
+    /// Normalized microphone permission status across iOS versions.
+    private enum RecordPermissionStatus {
+        case granted, denied, undetermined
+    }
+
+    /// Returns the current microphone permission status using the iOS 17+
+    /// AVAudioApplication API when available, falling back to AVAudioSession
+    /// on iOS 16 and below. The legacy AVAudioSession.recordPermission /
+    /// requestRecordPermission APIs are deprecated as of iOS 17 and have
+    /// proven unreliable on iOS 26 (silent denial without showing the system
+    /// prompt), so prefer AVAudioApplication where available.
+    private func currentRecordPermissionStatus() -> RecordPermissionStatus {
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+            case .granted: return .granted
+            case .denied: return .denied
+            case .undetermined: return .undetermined
+            @unknown default: return .denied
+            }
+        } else {
+            switch AVAudioSession.sharedInstance().recordPermission {
+            case .granted: return .granted
+            case .denied: return .denied
+            case .undetermined: return .undetermined
+            @unknown default: return .denied
+            }
+        }
+    }
+
+    /// Requests microphone permission using the iOS 17+ AVAudioApplication
+    /// API when available, falling back to AVAudioSession on iOS 16 and
+    /// below. Result is delivered on the main queue.
+    private func requestRecordPermission(completion: @escaping (Bool) -> Void) {
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermission { granted in
+                DispatchQueue.main.async { completion(granted) }
+            }
+        } else {
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                DispatchQueue.main.async { completion(granted) }
+            }
+        }
+    }
+
     /// Checks microphone permission and calls the completion handler with the result.
     ///
     /// - Parameters:
     ///   - completion: A completion handler that receives a boolean indicating whether the microphone permission was granted.
     private func checkMicrophonePermission(completion: @escaping (Bool) -> Void) {
-        switch AVAudioSession.sharedInstance().recordPermission {
+        switch currentRecordPermissionStatus() {
         case .granted:
             DispatchQueue.main.async { completion(true) }
         case .denied:
             DispatchQueue.main.async { completion(false) }
         case .undetermined:
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                DispatchQueue.main.async {
-                    completion(granted)
-                }
-            }
-        @unknown default:
-            DispatchQueue.main.async { completion(false) }
+            requestRecordPermission(completion: completion)
         }
     }
     
