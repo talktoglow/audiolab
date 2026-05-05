@@ -1,6 +1,6 @@
 {
     "name": "@talktoglow/audio-studio",
-    "version": "3.0.3-glow.0",
+    "version": "3.0.3-glow.1",
     "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web. Glow fork (talktoglow/audiolab) adds VoiceProcessingIO-based AEC + native PCM playback. Published as @talktoglow/audio-studio.",
     "license": "MIT",
     "type": "commonjs",
